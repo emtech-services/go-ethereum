@@ -570,58 +570,62 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err error) {
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
-	if pool.all.Get(hash) != nil {
-		log.Trace("Discarding already known transaction", "hash", hash)
-		knownTxMeter.Mark(1)
-		return false, ErrAlreadyKnown
-	}
+	// !!! DISCARDED JUST FOR TESTING
+	// if pool.all.Get(hash) != nil {
+	// 	log.Trace("Discarding already known transaction", "hash", hash)
+	// 	knownTxMeter.Mark(1)
+	// 	return false, ErrAlreadyKnown
+	// }
 	// If the transaction fails basic validation, discard it
-	if err := pool.validateTx(tx, local); err != nil {
-		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
-		invalidTxMeter.Mark(1)
-		return false, err
-	}
+	// !!! DISCARDED JUST FOR TESTING
+	// if err := pool.validateTx(tx, local); err != nil {
+	// 	log.Trace("Discarding invalid transaction", "hash", hash, "err", err)
+	// 	invalidTxMeter.Mark(1)
+	// 	return false, err
+	// }
 	// If the transaction pool is full, discard underpriced transactions
-	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
-		// If the new transaction is underpriced, don't accept it
-		if !local && pool.priced.Underpriced(tx, pool.locals) {
-			log.Trace("Discarding underpriced transaction", "hash", hash, "price", tx.GasPrice())
-			underpricedTxMeter.Mark(1)
-			return false, ErrUnderpriced
-		}
-		// New transaction is better than our worse ones, make room for it
-		drop := pool.priced.Discard(pool.all.Slots()-int(pool.config.GlobalSlots+pool.config.GlobalQueue)+numSlots(tx), pool.locals)
-		for _, tx := range drop {
-			log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "price", tx.GasPrice())
-			underpricedTxMeter.Mark(1)
-			pool.removeTx(tx.Hash(), false)
-		}
-	}
+	// !!! DISCARDED JUST FOR TESTING
+	// if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
+	// 	// If the new transaction is underpriced, don't accept it
+	// 	if !local && pool.priced.Underpriced(tx, pool.locals) {
+	// 		log.Trace("Discarding underpriced transaction", "hash", hash, "price", tx.GasPrice())
+	// 		underpricedTxMeter.Mark(1)
+	// 		return false, ErrUnderpriced
+	// 	}
+	// 	// New transaction is better than our worse ones, make room for it
+	// 	drop := pool.priced.Discard(pool.all.Slots()-int(pool.config.GlobalSlots+pool.config.GlobalQueue)+numSlots(tx), pool.locals)
+	// 	for _, tx := range drop {
+	// 		log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "price", tx.GasPrice())
+	// 		underpricedTxMeter.Mark(1)
+	// 		pool.removeTx(tx.Hash(), false)
+	// 	}
+	// }
 	// Try to replace an existing transaction in the pending pool
 	from, _ := types.Sender(pool.signer, tx) // already validated
-	if list := pool.pending[from]; list != nil && list.Overlaps(tx) {
-		// Nonce already pending, check if required price bump is met
-		inserted, old := list.Add(tx, pool.config.PriceBump)
-		if !inserted {
-			pendingDiscardMeter.Mark(1)
-			return false, ErrReplaceUnderpriced
-		}
-		// New transaction is better, replace old one
-		if old != nil {
-			pool.all.Remove(old.Hash())
-			pool.priced.Removed(1)
-			pendingReplaceMeter.Mark(1)
-		}
-		pool.all.Add(tx)
-		pool.priced.Put(tx)
-		pool.journalTx(from, tx)
-		pool.queueTxEvent(tx)
-		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.To())
+	// !!! DISCARDED JUST FOR TESTING
+	// if list := pool.pending[from]; list != nil && list.Overlaps(tx) {
+	// 	// Nonce already pending, check if required price bump is met
+	// 	inserted, old := list.Add(tx, pool.config.PriceBump)
+	// 	if !inserted {
+	// 		pendingDiscardMeter.Mark(1)
+	// 		return false, ErrReplaceUnderpriced
+	// 	}
+	// 	// New transaction is better, replace old one
+	// 	if old != nil {
+	// 		pool.all.Remove(old.Hash())
+	// 		pool.priced.Removed(1)
+	// 		pendingReplaceMeter.Mark(1)
+	// 	}
+	// 	pool.all.Add(tx)
+	// 	pool.priced.Put(tx)
+	// 	pool.journalTx(from, tx)
+	// 	pool.queueTxEvent(tx)
+	// 	log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.To())
 
-		// Successful promotion, bump the heartbeat
-		pool.beats[from] = time.Now()
-		return old != nil, nil
-	}
+	// 	// Successful promotion, bump the heartbeat
+	// 	pool.beats[from] = time.Now()
+	// 	return old != nil, nil
+	// }
 	// New transaction isn't replacing a pending one, push into queue
 	replaced, err = pool.enqueueTx(hash, tx)
 	if err != nil {
@@ -658,15 +662,15 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction) (bool, er
 		queuedDiscardMeter.Mark(1)
 		return false, ErrReplaceUnderpriced
 	}
-	// Discard any previous transaction and mark this
-	if old != nil {
-		pool.all.Remove(old.Hash())
-		pool.priced.Removed(1)
-		queuedReplaceMeter.Mark(1)
-	} else {
-		// Nothing was replaced, bump the queued counter
-		queuedGauge.Inc(1)
-	}
+	// // Discard any previous transaction and mark this
+	// if old != nil {
+	// 	pool.all.Remove(old.Hash())
+	// 	pool.priced.Removed(1)
+	// 	queuedReplaceMeter.Mark(1)
+	// } else {
+	// 	// Nothing was replaced, bump the queued counter
+	// 	queuedGauge.Inc(1)
+	// }
 	if pool.all.Get(hash) == nil {
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
