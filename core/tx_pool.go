@@ -602,30 +602,29 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	// }
 	// Try to replace an existing transaction in the pending pool
 	from, _ := types.Sender(pool.signer, tx) // already validated
-	// !!! DISCARDED JUST FOR TESTING
-	// if list := pool.pending[from]; list != nil && list.Overlaps(tx) {
-	// 	// Nonce already pending, check if required price bump is met
-	// 	inserted, old := list.Add(tx, pool.config.PriceBump)
-	// 	if !inserted {
-	// 		pendingDiscardMeter.Mark(1)
-	// 		return false, ErrReplaceUnderpriced
-	// 	}
-	// 	// New transaction is better, replace old one
-	// 	if old != nil {
-	// 		pool.all.Remove(old.Hash())
-	// 		pool.priced.Removed(1)
-	// 		pendingReplaceMeter.Mark(1)
-	// 	}
-	// 	pool.all.Add(tx)
-	// 	pool.priced.Put(tx)
-	// 	pool.journalTx(from, tx)
-	// 	pool.queueTxEvent(tx)
-	// 	log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.To())
+	if list := pool.pending[from]; list != nil && list.Overlaps(tx) {
+		// Nonce already pending, check if required price bump is met
+		inserted, old := list.Add(tx, pool.config.PriceBump)
+		if !inserted {
+			pendingDiscardMeter.Mark(1)
+			return false, ErrReplaceUnderpriced
+		}
+		// New transaction is better, replace old one
+		if old != nil {
+			pool.all.Remove(old.Hash())
+			pool.priced.Removed(1)
+			pendingReplaceMeter.Mark(1)
+		}
+		pool.all.Add(tx)
+		pool.priced.Put(tx)
+		pool.journalTx(from, tx)
+		pool.queueTxEvent(tx)
+		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.To())
 
-	// 	// Successful promotion, bump the heartbeat
-	// 	pool.beats[from] = time.Now()
-	// 	return old != nil, nil
-	// }
+		// Successful promotion, bump the heartbeat
+		pool.beats[from] = time.Now()
+		return old != nil, nil
+	}
 	// New transaction isn't replacing a pending one, push into queue
 	replaced, err = pool.enqueueTx(hash, tx)
 	if err != nil {
@@ -657,11 +656,11 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction) (bool, er
 		pool.queue[from] = newTxList(false)
 	}
 	inserted, old := pool.queue[from].Add(tx, pool.config.PriceBump)
-	if !inserted {
-		// An older transaction was better, discard this
-		queuedDiscardMeter.Mark(1)
-		return false, ErrReplaceUnderpriced
-	}
+	// if !inserted {
+	// 	// An older transaction was better, discard this
+	// 	queuedDiscardMeter.Mark(1)
+	// 	return false, ErrReplaceUnderpriced
+	// }
 	// // Discard any previous transaction and mark this
 	// if old != nil {
 	// 	pool.all.Remove(old.Hash())
@@ -1583,8 +1582,8 @@ func (t *txLookup) Slots() int {
 
 // Add adds a transaction to the lookup.
 func (t *txLookup) Add(tx *types.Transaction) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
+	// t.lock.Lock()
+	// defer t.lock.Unlock()
 
 	t.slots += numSlots(tx)
 	slotsGauge.Update(int64(t.slots))
